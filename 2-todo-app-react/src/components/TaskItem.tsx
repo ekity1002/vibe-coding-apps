@@ -1,19 +1,19 @@
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Check, PenLine, Trash2, X } from "lucide-react";
-import type { TaskItemProps } from "@/types";
-import { useState } from "react";
+import { Check, PenLine, Trash2, X } from 'lucide-react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import type { TaskItemProps } from '@/types';
 
-export function TaskItem({ 
-  task, 
-  onToggleComplete, 
-  onEdit, 
-  onSaveEdit, 
-  onCancelEdit, 
-  onDelete, 
-  celebrateTaskId 
+export function TaskItem({
+  task,
+  onToggleComplete,
+  onEdit,
+  onSaveEdit,
+  onCancelEdit,
+  onDelete,
+  celebrateTaskId,
 }: TaskItemProps) {
   const [tempText, setTempText] = useState(task.text);
 
@@ -38,7 +38,9 @@ export function TaskItem({
   return (
     <div
       className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 transition-all duration-500 hover:shadow-2xl transform hover:-translate-y-1 ${
-        celebrateTaskId === task.id ? 'animate-pulse bg-gradient-to-r from-green-100 to-emerald-100' : ''
+        celebrateTaskId === task.id
+          ? 'animate-pulse bg-gradient-to-r from-green-100 to-emerald-100'
+          : ''
       }`}
     >
       <div className="flex items-center gap-4">
@@ -86,18 +88,10 @@ export function TaskItem({
         <div className="flex gap-2 shrink-0">
           {task.isEditing ? (
             <>
-              <Button
-                variant="success"
-                size="sm"
-                onClick={handleSaveEdit}
-              >
+              <Button variant="success" size="sm" onClick={handleSaveEdit}>
                 <Check className="size-4" />
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCancelEdit}
-              >
+              <Button variant="outline" size="sm" onClick={handleCancelEdit}>
                 <X className="size-4" />
               </Button>
             </>

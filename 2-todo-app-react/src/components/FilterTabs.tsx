@@ -1,9 +1,9 @@
-import type { FilterTabsProps, FilterType } from "@/types";
+import type { FilterTabsProps, FilterType } from '@/types';
 
 const filterLabels: Record<FilterType, string> = {
   all: 'すべて',
   active: '未完了',
-  completed: '完了済み'
+  completed: '完了済み',
 };
 
 export function FilterTabs({ filter, setFilter, totalCount }: FilterTabsProps) {

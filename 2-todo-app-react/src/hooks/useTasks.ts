@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import type { Task, FilterType } from '@/types';
+import { useEffect, useState } from 'react';
+import type { FilterType, Task } from '@/types';
 
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -14,7 +14,7 @@ export function useTasks() {
     if (savedTasks) {
       const parsedTasks = JSON.parse(savedTasks).map((task: any) => ({
         ...task,
-        createdAt: new Date(task.createdAt)
+        createdAt: new Date(task.createdAt),
       }));
       setTasks(parsedTasks);
     }
@@ -28,34 +28,36 @@ export function useTasks() {
   const handleAddTask = async () => {
     if (newTask.trim() !== '') {
       setIsLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate API call
 
       const newTaskObj = {
         id: Date.now(),
         text: newTask.trim(),
         completed: false,
         isEditing: false,
-        createdAt: new Date()
+        createdAt: new Date(),
       };
 
-      setTasks(prev => [newTaskObj, ...prev]);
+      setTasks((prev) => [newTaskObj, ...prev]);
       setNewTask('');
       setIsLoading(false);
     }
   };
 
   const handleToggleComplete = (id: number) => {
-    setTasks(tasks.map((task) => {
-      if (task.id === id) {
-        const updatedTask = { ...task, completed: !task.completed };
-        if (updatedTask.completed) {
-          setCelebrateTaskId(id);
-          setTimeout(() => setCelebrateTaskId(null), 2000);
+    setTasks(
+      tasks.map((task) => {
+        if (task.id === id) {
+          const updatedTask = { ...task, completed: !task.completed };
+          if (updatedTask.completed) {
+            setCelebrateTaskId(id);
+            setTimeout(() => setCelebrateTaskId(null), 2000);
+          }
+          return updatedTask;
         }
-        return updatedTask;
-      }
-      return task;
-    }));
+        return task;
+      })
+    );
   };
 
   const handleDeleteTask = (id: number) => {
@@ -63,26 +65,36 @@ export function useTasks() {
   };
 
   const handleEditTask = (id: number) => {
-    setTasks(tasks.map((task) =>
-      task.id === id ? { ...task, isEditing: true } : { ...task, isEditing: false }
-    ));
+    setTasks(
+      tasks.map((task) =>
+        task.id === id
+          ? { ...task, isEditing: true }
+          : { ...task, isEditing: false }
+      )
+    );
   };
 
   const handleSaveEdit = (id: number, newText: string) => {
     if (newText.trim() !== '') {
-      setTasks(tasks.map((task) =>
-        task.id === id ? { ...task, text: newText.trim(), isEditing: false } : task
-      ));
+      setTasks(
+        tasks.map((task) =>
+          task.id === id
+            ? { ...task, text: newText.trim(), isEditing: false }
+            : task
+        )
+      );
     }
   };
 
   const handleCancelEdit = (id: number) => {
-    setTasks(tasks.map((task) =>
-      task.id === id ? { ...task, isEditing: false } : task
-    ));
+    setTasks(
+      tasks.map((task) =>
+        task.id === id ? { ...task, isEditing: false } : task
+      )
+    );
   };
 
-  const completedCount = tasks.filter(task => task.completed).length;
+  const completedCount = tasks.filter((task) => task.completed).length;
   const totalCount = tasks.length;
 
   return {
@@ -100,6 +112,6 @@ export function useTasks() {
     handleSaveEdit,
     handleCancelEdit,
     completedCount,
-    totalCount
+    totalCount,
   };
 }

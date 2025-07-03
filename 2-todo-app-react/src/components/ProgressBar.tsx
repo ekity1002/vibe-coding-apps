@@ -1,8 +1,8 @@
-import type { ProgressBarProps } from "@/types";
+import type { ProgressBarProps } from '@/types';
 
 export function ProgressBar({ completedCount, totalCount }: ProgressBarProps) {
   if (totalCount === 0) return null;
-  
+
   const progressPercentage = (completedCount / totalCount) * 100;
 
   return (

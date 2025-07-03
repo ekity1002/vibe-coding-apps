@@ -1,10 +1,10 @@
-import { Header } from "@/components/Header";
-import { ProgressBar } from "@/components/ProgressBar";
-import { TaskForm } from "@/components/TaskForm";
-import { FilterTabs } from "@/components/FilterTabs";
-import { TaskList } from "@/components/TaskList";
-import { Footer } from "@/components/Footer";
-import { useTasks } from "@/hooks/useTasks";
+import { FilterTabs } from '@/components/FilterTabs';
+import { Footer } from '@/components/Footer';
+import { Header } from '@/components/Header';
+import { ProgressBar } from '@/components/ProgressBar';
+import { TaskForm } from '@/components/TaskForm';
+import { TaskList } from '@/components/TaskList';
+import { useTasks } from '@/hooks/useTasks';
 
 function App() {
   const {
@@ -22,7 +22,7 @@ function App() {
     handleSaveEdit,
     handleCancelEdit,
     completedCount,
-    totalCount
+    totalCount,
   } = useTasks();
 
   return (
@@ -35,22 +35,22 @@ function App() {
 
       <div className="relative z-10 container mx-auto px-4 py-8 max-w-4xl">
         <Header totalCount={totalCount} completedCount={completedCount} />
-        
+
         <ProgressBar completedCount={completedCount} totalCount={totalCount} />
-        
+
         <TaskForm
           newTask={newTask}
           setNewTask={setNewTask}
           onAddTask={handleAddTask}
           isLoading={isLoading}
         />
-        
+
         <FilterTabs
           filter={filter}
           setFilter={setFilter}
           totalCount={totalCount}
         />
-        
+
         <TaskList
           tasks={tasks}
           onToggleComplete={handleToggleComplete}
@@ -61,7 +61,7 @@ function App() {
           celebrateTaskId={celebrateTaskId}
           filter={filter}
         />
-        
+
         <Footer />
       </div>
 
