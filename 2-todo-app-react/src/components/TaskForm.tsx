@@ -1,9 +1,14 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Plus } from "lucide-react";
-import type { TaskFormProps } from "@/types";
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import type { TaskFormProps } from '@/types';
 
-export function TaskForm({ newTask, setNewTask, onAddTask, isLoading }: TaskFormProps) {
+export function TaskForm({
+  newTask,
+  setNewTask,
+  onAddTask,
+  isLoading,
+}: TaskFormProps) {
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !isLoading) {
       onAddTask();
@@ -17,7 +22,9 @@ export function TaskForm({ newTask, setNewTask, onAddTask, isLoading }: TaskForm
           <Input
             label="新しいタスクを追加"
             value={newTask}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTask(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setNewTask(e.target.value)
+            }
             onKeyPress={handleKeyPress}
             className="text-lg"
             disabled={isLoading}
