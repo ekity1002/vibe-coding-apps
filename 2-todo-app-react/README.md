@@ -130,6 +130,27 @@ The application is optimized for deployment to:
 
 Build artifacts are generated in the `dist/` directory.
 
+### Vercel Deployment Commands
+
+```bash
+# ログイン
+vercel login
+
+# プロジェクトリスト確認
+vercel project list
+
+# 今いるフォルダにプロジェクト作成
+vercel pull
+
+# preview環境デプロイ
+vercel build
+vercel deploy --prebuilt
+
+# 本番デプロイ
+vercel deploy --prebuilt --prod
+vercel build --prod
+```
+
 ## Contributing
 
 1. Fork the repository
