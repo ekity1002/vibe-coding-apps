@@ -45,7 +45,8 @@ export class EditorConfig {
 
   // テスト用のリセットメソッド
   public static resetInstance(): void {
-    EditorConfig.instance = null as any
+    // テスト用のインスタンスリセット
+    EditorConfig.instance = null as EditorConfig | null
   }
 
   // Getter methods
