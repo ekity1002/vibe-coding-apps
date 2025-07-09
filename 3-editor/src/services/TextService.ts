@@ -1,8 +1,8 @@
 /**
  * テキストサービス - 文字列処理のユーティリティクラス
- * 
+ *
  * TDD実装による文字列解析、統計計算、検索・置換機能を提供
- * 
+ *
  * Features:
  * - Unicode対応の文字数カウント
  * - 様々な改行文字に対応した行数カウント
@@ -10,7 +10,7 @@
  * - テキスト検証とサニタイゼーション
  * - 包括的なテキスト統計情報
  * - 大小文字を考慮した検索機能
- * 
+ *
  * Design Patterns:
  * - Static Factory Pattern: 静的メソッドによるユーティリティ機能提供
  * - Strategy Pattern: 検索オプションによる動作切り替え
@@ -24,7 +24,7 @@ export class TextService {
     words: number
     charactersNoSpaces: number
   }>()
-  
+
   /**
    * 文字数をカウントする（Unicode文字を正しく処理）
    */
@@ -32,7 +32,7 @@ export class TextService {
     if (typeof text !== 'string') {
       throw new TypeError('Input must be a string')
     }
-    
+
     // Unicode絵文字や結合文字を正しくカウントするため、Array.fromを使用
     // 改行文字は統一せずにそのままカウント
     return Array.from(text).length
@@ -45,7 +45,7 @@ export class TextService {
     if (typeof text !== 'string') {
       throw new TypeError('Input must be a string')
     }
-    
+
     if (text === '') return 1
 
     // 改行文字を統一してカウント
@@ -61,7 +61,7 @@ export class TextService {
     if (typeof text !== 'string') {
       throw new TypeError('Input must be a string')
     }
-    
+
     // 空文字列や空白のみの場合は0
     const trimmed = text.trim()
     if (trimmed === '') return 0
@@ -126,25 +126,25 @@ export class TextService {
     if (typeof text !== 'string') {
       throw new TypeError('Input must be a string')
     }
-    
+
     // 大きなテキストの場合はキャッシュを使用
     if (text.length > this.CACHE_SIZE_THRESHOLD) {
       const cached = this.textStatsCache.get(text)
       if (cached) return cached
     }
-    
+
     const stats = {
       characters: this.getCharacterCount(text),
       lines: this.getLineCount(text),
       words: this.getWordCount(text),
       charactersNoSpaces: Array.from(text.replace(/\s/g, '')).length
     }
-    
+
     // キャッシュに保存（最大100エントリまで）
     if (text.length > this.CACHE_SIZE_THRESHOLD && this.textStatsCache.size < 100) {
       this.textStatsCache.set(text, stats)
     }
-    
+
     return stats
   }
 
@@ -155,7 +155,7 @@ export class TextService {
     if (typeof text !== 'string' || typeof searchTerm !== 'string') {
       throw new TypeError('Both text and searchTerm must be strings')
     }
-    
+
     if (searchTerm === '') return []
 
     const positions: number[] = []
