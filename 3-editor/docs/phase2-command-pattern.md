@@ -534,3 +534,167 @@ Phase 2 では Command Pattern の実装を通じて、以下の技術的成果�
 - **アーキテクチャ設計スキルの向上**
 
 この基盤により、Phase 3 でのより複雑な機能実装が可能になり、実用的なテキストエディタの完成に向けた重要なマイルストーンを達成しました。
+
+---
+
+## 11. React統合での追加課題と解決策
+
+### 課題: useCommandHistoryフックでのテキスト同期問題
+
+#### 問題の発生
+Phase 2のReact統合において、useCommandHistoryフックで以下の問題が発生しました：
+
+```typescript
+// ❌ 問題のあった実装
+const textRef = useRef(initialText)
+const canUndo = useMemo(() => commandService.canUndo(), [commandService])
+
+return {
+  text: textRef.current,  // この値が更新されない
+  canUndo,                // この値も更新されない
+  // ...
+}
+```
+
+**症状:**
+- 35のテストのうち26が失敗
+- `text`プロパティがCommand実行後も初期値のまま
+- `canUndo`、`canRedo`の状態が正しく更新されない
+- 複数のCommandを連続実行すると最後の結果のみ反映
+
+#### 根本原因の分析
+
+**1. リアクティブ性の欠如**
+```typescript
+// useRefは値が変更されてもReactの再レンダリングをトリガーしない
+const textRef = useRef(initialText)
+return { text: textRef.current }  // 初期値が固定化される
+```
+
+**2. useMemoの依存関係不備**
+```typescript
+// commandServiceの状態変化がuseMemoに反映されない
+const canUndo = useMemo(() => commandService.canUndo(), [commandService])
+```
+
+**3. CommandContext内での状態不整合**
+```typescript
+// get currentText()が古い値を返す
+const commandContext = useMemo(() => ({
+  get currentText() {
+    return textRef.current  // 実行時点の値ではなく、フック初期化時の値
+  }
+}), [])  // 依存関係が空なので更新されない
+```
+
+#### 解決策の実装
+
+**1. useState + useRefの併用パターン**
+```typescript
+// ✅ 修正後の実装
+const [text, setTextState] = useState(initialText)
+const textRef = useRef(text)
+
+// textRefとReactの状態を同期
+textRef.current = text
+
+const commandContext = useMemo<CommandContext>(() => ({
+  get currentText() {
+    return textRef.current  // 常に最新の値を返す
+  },
+  updateText: (newText: string) => {
+    textRef.current = newText      // 即座に更新
+    setTextState(newText)          // Reactの再レンダリングをトリガー
+    updateTextCallbacks.current.forEach(callback => callback(newText))
+  }
+}), [])  // 関数の定義は不変だが、内部で参照する値は動的
+```
+
+**2. 状態更新カウンターの導入**
+```typescript
+// ✅ useMemoの依存関係を明確化
+const [updateCounter, setUpdateCounter] = useState(0)
+
+// 全ての操作で状態更新をトリガー
+const undo = useCallback((): boolean => {
+  const result = commandService.undo()
+  setUpdateCounter(prev => prev + 1)  // 強制的にuseMemoを再計算
+  return result
+}, [commandService])
+
+// updateCounterに依存させることで確実に再計算
+const canUndo = useMemo(() => commandService.canUndo(), [commandService, updateCounter])
+const canRedo = useMemo(() => commandService.canRedo(), [commandService, updateCounter])
+```
+
+**3. 統合的な状態管理**
+```typescript
+// ✅ 全ての状態変更操作を統一
+const operations = {
+  insertText: (text: string, position: number) => {
+    const result = commandService.executeCommand(new InsertTextCommand(text, position, commandContext))
+    // updateTextでsetTextStateとsetUpdateCounterが自動的に呼ばれる
+    return result
+  },
+  undo: () => {
+    const result = commandService.undo()
+    setUpdateCounter(prev => prev + 1)  // 統計情報の更新をトリガー
+    return result
+  },
+  clearHistory: () => {
+    commandService.clearHistory()
+    setUpdateCounter(prev => prev + 1)  // 統計情報のリセットをトリガー
+  }
+}
+```
+
+#### 学習ポイント
+
+**1. Reactフックでの状態管理パターン**
+- **useState**: UIに反映する必要があるリアクティブな状態
+- **useRef**: パフォーマンス重視で即座に値が必要な状態
+- **useState + useRef**: 両方の利点を活用する併用パターン
+
+**2. useMemoの依存関係設計**
+- 依存する値がオブジェクト内部にある場合の検出方法
+- 状態変化を強制的に検出するカウンターパターン
+- パフォーマンスと正確性のバランス
+
+**3. CommandPatternとReactの統合設計**
+- UIフレームワークに依存しないCommand設計
+- Reactの状態管理との適切な橋渡し
+- テスタビリティを維持した統合アーキテクチャ
+
+#### TDDでの問題解決プロセス
+
+**Red → Green → Refactor のサイクル実践**
+
+1. **Red フェーズ**: 35テスト中26失敗
+   - 失敗テストから問題の本質を特定
+   - 期待する振る舞いを明確化
+
+2. **Green フェーズ**: 段階的な修正
+   - useState導入 → 8失敗に減少
+   - updateCounter導入 → 3失敗に減少
+   - 統合的修正 → 全35テスト成功
+
+3. **Refactor フェーズ**: 品質向上
+   - コードの可読性向上
+   - パフォーマンス最適化
+   - 将来の拡張性確保
+
+#### 成果と効果
+
+**技術的成果:**
+- ✅ 35テスト全成功 (26失敗 → 0失敗)
+- ✅ リアルタイムなテキスト同期
+- ✅ 正確な履歴状態管理
+- ✅ 複数Command連続実行の対応
+
+**学習効果:**
+- **Reactフック設計**: useState/useRef/useMemoの使い分け
+- **状態管理パターン**: 複雑な状態の一貫性保証
+- **TDD実践**: 失敗テストからの段階的問題解決
+- **デザインパターン統合**: フレームワーク特有の課題への対応
+
+この経験により、デザインパターンをReactエコシステムに統合する際の考慮点と解決策について実践的な知識を獲得しました。
