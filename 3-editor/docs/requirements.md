@@ -37,7 +37,26 @@
 
 ---
 
-## Phase 3: ファイル操作 + Factory Pattern
+## Phase 3: UI更新 + Observer Pattern
+**目標**: リアルタイム更新機能を実装し、Observerパターンを学ぶ
+
+**実装内容**:
+- エディタ設定変更の通知システム
+- 行番号・文字数カウンターの自動更新
+- 複数コンポーネント間の状態同期
+- 履歴パネルと操作統計の実装
+
+**学習内容**:
+- Observerパターンの概念
+- イベント駆動設計
+- 疎結合な設計
+- リアクティブプログラミング
+
+**成果物**: リアルタイム更新機能付きエディタ
+
+---
+
+## Phase 4: ファイル操作 + Factory Pattern
 **目標**: ファイル作成・保存機能を実装し、Factoryパターンを学ぶ
 
 **実装内容**:
@@ -51,23 +70,6 @@
 - 拡張性のある設計
 
 **成果物**: ファイル操作機能付きエディタ
-
----
-
-## Phase 4: UI更新 + Observer Pattern
-**目標**: リアルタイム更新機能を実装し、Observerパターンを学ぶ
-
-**実装内容**:
-- ドキュメント変更の通知システム
-- 行番号・文字数カウンターの自動更新
-- 複数ビューの同期
-
-**学習内容**:
-- Observerパターンの概念
-- イベント駆動設計
-- 疎結合な設計
-
-**成果物**: リアルタイム更新機能付きエディタ
 
 ---
 
@@ -199,72 +201,76 @@ services/
 ### Phase 2: 操作履歴 + Command
 **アーキテクチャ構成**:
 ```
-patterns/
-└── command/
-    ├── Command.ts           # Commandインターフェース
-    ├── TextCommand.ts       # テキスト操作Command
-    └── CommandManager.ts    # Command管理クラス
+types/
+└── CommandTypes.ts         # Command関連型定義
 
 services/
-└── HistoryService.ts       # 履歴管理サービス
+├── CommandService.ts       # Command管理サービス
+├── InsertTextCommand.ts    # テキスト挿入Command
+├── DeleteTextCommand.ts    # テキスト削除Command
+└── ReplaceTextCommand.ts   # テキスト置換Command
 
 hooks/
-└── useHistory.ts          # 履歴管理フック
+└── useCommandHistory.ts    # 履歴管理フック
+
+editor/
+├── CommandEditor.tsx       # Command統合エディタ
+└── CommandTextArea.tsx     # Command対応テキストエリア
 ```
 
 **設計原則**:
 - Commandパターンで操作を抽象化
 - 各操作を独立したオブジェクトとして管理
 - アンドゥ・リドゥスタックを配列で実装
+- React統合でのテキスト同期
 
 ---
 
-### Phase 3: ファイル操作 + Factory
+### Phase 3: UI更新 + Observer
 **アーキテクチャ構成**:
 ```
-patterns/
-└── factory/
-    ├── FileFactory.ts       # ファイル作成Factory
-    ├── FileType.ts          # ファイル型定義
-    └── FileCreator.ts       # 具体的なファイル作成者
-
 services/
-├── FileService.ts          # ファイル操作サービス
-└── StorageService.ts       # ローカル保存サービス
-
-types/
-└── FileTypes.ts           # ファイル関連型定義
-```
-
-**技術要件**:
-- ブラウザのFile APIを使用
-- LocalStorageでファイル保存
-- 非同期処理はasync/awaitで実装
-
----
-
-### Phase 4: UI更新 + Observer
-**アーキテクチャ構成**:
-```
-patterns/
-└── observer/
-    ├── Observer.ts          # Observerインターフェース
-    ├── Subject.ts           # Subjectクラス
-    └── DocumentObserver.ts  # ドキュメント監視クラス
+├── ObserverService.ts       # Observer管理サービス
+└── ConfigObserver.ts        # 設定変更Observer
 
 components/
 ├── StatusBar.tsx           # ステータスバー
 ├── LineCounter.tsx         # 行番号カウンター
-└── CharCounter.tsx         # 文字数カウンター
+├── CharCounter.tsx         # 文字数カウンター
+├── HistoryPanel.tsx        # 履歴表示パネル
+└── OperationStats.tsx      # 操作統計パネル
 
 hooks/
 └── useObserver.ts         # Observer管理フック
 ```
 
 **状態管理戦略**:
-- Redux Toolkitを導入
-- Observer更新をReduxアクションで管理
+- Observer PatternでEditorConfig設定変更を監視
 - リアルタイム更新はuseEffectで実装
+- 複数コンポーネント間の状態同期
+
+---
+
+### Phase 4: ファイル操作 + Factory
+**アーキテクチャ構成**:
+```
+services/
+├── FileFactory.ts          # ファイル作成Factory
+├── FileService.ts          # ファイル操作サービス
+└── StorageService.ts       # ローカル保存サービス
+
+types/
+└── FileTypes.ts           # ファイル関連型定義
+
+components/
+├── FileMenu.tsx           # ファイルメニュー
+└── FileExplorer.tsx       # ファイル一覧
+```
+
+**技術要件**:
+- ブラウザのFile APIを使用
+- LocalStorageでファイル保存
+- 非同期処理はasync/awaitで実装
 
 ---
 

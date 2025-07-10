@@ -1,16 +1,16 @@
-import { useRef, useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { CommandService } from '../services/CommandService'
-import { InsertTextCommand } from '../services/InsertTextCommand'
 import { DeleteTextCommand } from '../services/DeleteTextCommand'
+import { InsertTextCommand } from '../services/InsertTextCommand'
 import { ReplaceTextCommand } from '../services/ReplaceTextCommand'
-import { CommandContext, CommandHistoryConfig } from '../types/CommandTypes'
+import type { CommandContext, CommandHistoryConfig } from '../types/CommandTypes'
 
 /**
  * Command履歴管理のためのReactフック
- * 
+ *
  * Command Patternの実装において、Reactコンポーネントとの統合を担当する。
  * テキストエディタでのアンドゥ・リドゥ機能をuseCommandHistoryフックとして提供。
- * 
+ *
  * Design Patterns:
  * - Command Pattern: 操作のオブジェクト化
  * - Observer Pattern: テキスト変更の監視
