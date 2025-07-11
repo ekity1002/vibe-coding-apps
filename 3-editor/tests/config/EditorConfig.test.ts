@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { EditorConfig } from '../../src/config/EditorConfig'
+import { ConfigObserver } from '../../src/services/ConfigObserver'
 
 describe('EditorConfig Singleton', () => {
   beforeEach(() => {
@@ -64,7 +65,19 @@ describe('EditorConfig Singleton', () => {
         theme: 'light',
         showLineNumbers: true,
         autoSave: false,
+        tabSize: 2,
+        wordWrap: true
       })
+    })
+
+    it('should have default tab size of 2', () => {
+      const config = EditorConfig.getInstance()
+      expect(config.getTabSize()).toBe(2)
+    })
+
+    it('should have word wrap enabled by default', () => {
+      const config = EditorConfig.getInstance()
+      expect(config.getWordWrap()).toBe(true)
     })
   })
 
@@ -205,6 +218,8 @@ describe('EditorConfig Singleton', () => {
         theme: 'dark',
         showLineNumbers: false,
         autoSave: true,
+        tabSize: 2,
+        wordWrap: true
       })
     })
   })
@@ -232,6 +247,279 @@ describe('EditorConfig Singleton', () => {
       const config2 = EditorConfig.getInstance()
       // After reset, should have default values
       expect(config2.getFontSize()).toBe(14)
+    })
+  })
+
+  describe('Observer Pattern Integration', () => {
+    let config: EditorConfig
+    let mockCallback: ReturnType<typeof vi.fn>
+    let observer: ConfigObserver
+
+    beforeEach(() => {
+      config = EditorConfig.getInstance()
+      mockCallback = vi.fn()
+      observer = new ConfigObserver(mockCallback, { id: 'test-observer' })
+    })
+
+    describe('Observer Registration', () => {
+      it('should attach and detach observers', () => {
+        expect(config.getObserverCount()).toBe(0)
+        
+        config.attach(observer)
+        expect(config.getObserverCount()).toBe(1)
+        expect(config.hasObserver('test-observer')).toBe(true)
+        
+        config.detach(observer)
+        expect(config.getObserverCount()).toBe(0)
+        expect(config.hasObserver('test-observer')).toBe(false)
+      })
+
+      it('should detach observers by ID', () => {
+        config.attach(observer)
+        expect(config.getObserverCount()).toBe(1)
+        
+        config.detachById('test-observer')
+        expect(config.getObserverCount()).toBe(0)
+      })
+
+      it('should provide observer IDs', () => {
+        const observer1 = new ConfigObserver(() => {}, { id: 'observer-1' })
+        const observer2 = new ConfigObserver(() => {}, { id: 'observer-2' })
+        
+        config.attach(observer1)
+        config.attach(observer2)
+        
+        const ids = config.getObserverIds()
+        expect(ids).toContain('observer-1')
+        expect(ids).toContain('observer-2')
+        expect(ids.length).toBe(2)
+      })
+    })
+
+    describe('Change Notifications', () => {
+      beforeEach(() => {
+        config.attach(observer)
+      })
+
+      it('should notify on font size change', () => {
+        config.setFontSize(16)
+        
+        expect(mockCallback).toHaveBeenCalledWith(
+          expect.objectContaining({
+            key: 'fontSize',
+            oldValue: 14,
+            newValue: 16,
+            source: 'EditorConfig',
+            timestamp: expect.any(Number)
+          })
+        )
+      })
+
+      it('should notify on theme change', () => {
+        config.setTheme('dark')
+        
+        expect(mockCallback).toHaveBeenCalledWith(
+          expect.objectContaining({
+            key: 'theme',
+            oldValue: 'light',
+            newValue: 'dark'
+          })
+        )
+      })
+
+      it('should notify on line numbers setting change', () => {
+        config.setShowLineNumbers(false)
+        
+        expect(mockCallback).toHaveBeenCalledWith(
+          expect.objectContaining({
+            key: 'showLineNumbers',
+            oldValue: true,
+            newValue: false
+          })
+        )
+      })
+
+      it('should notify on auto save change', () => {
+        config.setAutoSave(true)
+        
+        expect(mockCallback).toHaveBeenCalledWith(
+          expect.objectContaining({
+            key: 'autoSave',
+            oldValue: false,
+            newValue: true
+          })
+        )
+      })
+
+      it('should notify on tab size change', () => {
+        config.setTabSize(4)
+        
+        expect(mockCallback).toHaveBeenCalledWith(
+          expect.objectContaining({
+            key: 'tabSize',
+            oldValue: 2,
+            newValue: 4
+          })
+        )
+      })
+
+      it('should notify on word wrap change', () => {
+        config.setWordWrap(false)
+        
+        expect(mockCallback).toHaveBeenCalledWith(
+          expect.objectContaining({
+            key: 'wordWrap',
+            oldValue: true,
+            newValue: false
+          })
+        )
+      })
+
+      it('should not notify if value does not change', () => {
+        config.setFontSize(14) // 同じ値に設定
+        expect(mockCallback).not.toHaveBeenCalled()
+      })
+
+      it('should notify multiple observers', () => {
+        const callback2 = vi.fn()
+        const observer2 = new ConfigObserver(callback2, { id: 'observer-2' })
+        config.attach(observer2)
+        
+        config.setTheme('dark')
+        
+        expect(mockCallback).toHaveBeenCalled()
+        expect(callback2).toHaveBeenCalled()
+      })
+    })
+
+    describe('Bulk Settings Update', () => {
+      beforeEach(() => {
+        config.attach(observer)
+      })
+
+      it('should notify for multiple changes', () => {
+        const newSettings = {
+          fontSize: 16 as const,
+          theme: 'dark' as const,
+          showLineNumbers: false
+        }
+        
+        config.updateSettings(newSettings)
+        
+        expect(mockCallback).toHaveBeenCalledTimes(3)
+        expect(config.getFontSize()).toBe(16)
+        expect(config.getTheme()).toBe('dark')
+        expect(config.getShowLineNumbers()).toBe(false)
+      })
+
+      it('should only notify for changed settings', () => {
+        const newSettings = {
+          fontSize: 14, // 同じ値
+          theme: 'dark' as const // 変更
+        }
+        
+        config.updateSettings(newSettings)
+        
+        expect(mockCallback).toHaveBeenCalledTimes(1) // themeのみ
+        expect(mockCallback).toHaveBeenCalledWith(
+          expect.objectContaining({
+            key: 'theme',
+            newValue: 'dark'
+          })
+        )
+      })
+    })
+
+    describe('Settings Validation', () => {
+      it('should validate correct settings', () => {
+        const validSettings = {
+          fontSize: 16 as const,
+          theme: 'dark' as const,
+          tabSize: 4
+        }
+        
+        expect(config.validateSettings(validSettings)).toBe(true)
+      })
+
+      it('should reject invalid font size', () => {
+        const invalidSettings = {
+          fontSize: 20 as any
+        }
+        
+        expect(config.validateSettings(invalidSettings)).toBe(false)
+      })
+
+      it('should reject invalid theme', () => {
+        const invalidSettings = {
+          theme: 'blue' as any
+        }
+        
+        expect(config.validateSettings(invalidSettings)).toBe(false)
+      })
+
+      it('should reject invalid tab size', () => {
+        const invalidSettings = {
+          tabSize: 10
+        }
+        
+        expect(config.validateSettings(invalidSettings)).toBe(false)
+      })
+    })
+
+    describe('Settings Reset', () => {
+      beforeEach(() => {
+        config.attach(observer)
+      })
+
+      it('should reset to defaults and notify changes', () => {
+        // 設定を変更
+        config.setFontSize(18)
+        config.setTheme('dark')
+        config.setShowLineNumbers(false)
+        
+        mockCallback.mockClear()
+        
+        // デフォルトにリセット
+        config.resetToDefaults()
+        
+        const settings = config.getSettings()
+        expect(settings).toEqual({
+          fontSize: 14,
+          theme: 'light',
+          showLineNumbers: true,
+          autoSave: false,
+          tabSize: 2,
+          wordWrap: true
+        })
+        
+        // 変更があった項目の通知確認
+        expect(mockCallback).toHaveBeenCalledTimes(3)
+      })
+    })
+
+    describe('Error Handling', () => {
+      it('should handle observer errors gracefully', () => {
+        const errorCallback = vi.fn(() => {
+          throw new Error('Observer error')
+        })
+        const normalCallback = vi.fn()
+        
+        const errorObserver = new ConfigObserver(errorCallback, { id: 'error-observer' })
+        const normalObserver = new ConfigObserver(normalCallback, { id: 'normal-observer' })
+        
+        config.attach(errorObserver)
+        config.attach(normalObserver)
+        
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+        
+        config.setTheme('dark')
+        
+        expect(errorCallback).toHaveBeenCalled()
+        expect(normalCallback).toHaveBeenCalled()
+        expect(consoleSpy).toHaveBeenCalled()
+        
+        consoleSpy.mockRestore()
+      })
     })
   })
 })
