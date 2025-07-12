@@ -3,9 +3,15 @@ import { Editor } from './presentation/components/editor/Editor'
 import { StatusBar } from './presentation/components/editor/StatusBar'
 import { LineCounter } from './presentation/components/editor/LineCounter'
 import { CharCounter } from './presentation/components/editor/CharCounter'
+import { FileMenu } from './presentation/components/file/FileMenu'
+import { FileExplorer } from './presentation/components/file/FileExplorer'
+import { SaveDialog } from './presentation/components/file/SaveDialog'
+import { LoadDialog } from './presentation/components/file/LoadDialog'
 import { EditorConfig } from './domain/config/entities/EditorConfig'
 import { ConfigObserver } from './domain/observer/services/ConfigObserver'
 import { TextService } from './application/services/TextService'
+import { FileServiceManager, type FileOperationObserver, type FileOperationNotification } from './application/services/FileService'
+import type { FileType } from './domain/file/types/FileTypes'
 import { Card, CardContent, CardHeader, CardTitle } from './presentation/shared/card'
 import { Button } from './presentation/shared/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './presentation/shared/select'
@@ -20,6 +26,9 @@ import './App.css'
  * - Composition Pattern: Editor、TextService、UI コンポーネントの組み合わせ
  * - Observer Pattern: エディタ設定変更の監視とリアルタイム更新
  * - Command Pattern: テキスト操作の履歴管理（CommandEditor使用時）
+ * - Factory Pattern: ファイル作成・管理システム（Phase 4）
+ * - Repository Pattern: ファイルデータの永続化管理
+ * - Facade Pattern: 複雑なファイル操作の統一インターフェース
  */
 function App() {
   const [text, setText] = useState('')
@@ -27,11 +36,25 @@ function App() {
   const [currentColumn, setCurrentColumn] = useState(1)
   const [selectedText] = useState<string | undefined>()
   
+  // ファイル管理状態（Phase 4 Factory Pattern）
+  const [currentFile, setCurrentFile] = useState<{
+    id: string
+    name: string
+    type: FileType
+  } | null>(null)
+  const [isFileExplorerOpen, setIsFileExplorerOpen] = useState(false)
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
+  const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false)
+  const [fileOperationStatus, setFileOperationStatus] = useState<string>('')
+  
   // 設定値を個別に管理してReactの再レンダリングを確実にする
   const [fontSize, setFontSize] = useState(() => EditorConfig.getInstance().getFontSize())
   const [theme, setTheme] = useState(() => EditorConfig.getInstance().getTheme())
   const [showLineNumbers, setShowLineNumbers] = useState(() => EditorConfig.getInstance().getShowLineNumbers())
   const [autoSave, setAutoSave] = useState(() => EditorConfig.getInstance().getAutoSave())
+  
+  // Factory Pattern: FileServiceManager のインスタンス取得
+  const [fileService] = useState(() => FileServiceManager.getInstance())
 
   // Observer Pattern実装: EditorConfigの変更監視
   useEffect(() => {
@@ -68,6 +91,28 @@ function App() {
       editorConfig.detach(appObserver)
     }
   }, [])
+
+  // Observer Pattern実装: FileService操作の監視（Phase 4）
+  useEffect(() => {
+    const fileObserver: FileOperationObserver = {
+      onFileOperation: (notification: FileOperationNotification) => {
+        setFileOperationStatus(
+          notification.success 
+            ? `${notification.operation} が完了しました: ${notification.file.name}`
+            : `${notification.operation} に失敗しました: ${notification.details || ''}`
+        )
+        
+        // 3秒後にステータスメッセージをクリア
+        setTimeout(() => setFileOperationStatus(''), 3000)
+      }
+    }
+    
+    fileService.addObserver(fileObserver)
+    
+    return () => {
+      fileService.removeObserver(fileObserver)
+    }
+  }, [fileService])
 
   // テキスト変更ハンドラ
   const handleTextChange = useCallback((newText: string) => {
@@ -119,18 +164,124 @@ function App() {
     console.log(`行 ${lineNumber} にジャンプ`)
   }, [])
 
+  // ===== Phase 4: Factory Pattern ファイル操作ハンドラ =====
+
+  // ファイル作成時のハンドラ
+  const handleFileCreated = useCallback((fileId: string, fileName: string, content: string) => {
+    setCurrentFile({ id: fileId, name: fileName, type: getFileTypeFromName(fileName) })
+    setText(content)
+    setFileOperationStatus(`新しいファイル「${fileName}」が作成されました`)
+  }, [])
+
+  // ファイル読み込み時のハンドラ
+  const handleFileLoaded = useCallback((fileId: string, fileName: string, content: string, fileType: FileType) => {
+    setCurrentFile({ id: fileId, name: fileName, type: fileType })
+    setText(content)
+    setFileOperationStatus(`ファイル「${fileName}」を読み込みました`)
+  }, [])
+
+  // ファイル保存時のハンドラ
+  const handleFileSaved = useCallback((fileId: string, fileName: string) => {
+    setCurrentFile(prev => prev ? { ...prev, id: fileId, name: fileName } : null)
+    setFileOperationStatus(`ファイル「${fileName}」を保存しました`)
+  }, [])
+
+  // ファイル削除時のハンドラ
+  const handleFileDeleted = useCallback((fileId: string, fileName: string) => {
+    // 削除されたファイルが現在開いているファイルの場合はクリア
+    if (currentFile && currentFile.id === fileId) {
+      setCurrentFile(null)
+      setText('')
+    }
+    setFileOperationStatus(`ファイル「${fileName}」を削除しました`)
+  }, [currentFile])
+
+  // ファイル名から形式を推定するユーティリティ
+  const getFileTypeFromName = useCallback((fileName: string): FileType => {
+    const extension = fileName.toLowerCase().split('.').pop()
+    switch (extension) {
+      case 'md': case 'markdown': return 'md'
+      case 'json': return 'json'
+      default: return 'txt'
+    }
+  }, [])
+
+  // ダイアログ制御ハンドラ
+  const handleOpenSaveDialog = useCallback(() => {
+    if (text.trim().length === 0) {
+      setFileOperationStatus('保存する内容がありません')
+      return
+    }
+    setIsSaveDialogOpen(true)
+  }, [text])
+
+  const handleOpenLoadDialog = useCallback(() => {
+    setIsLoadDialogOpen(true)
+  }, [])
+
+  const handleToggleFileExplorer = useCallback(() => {
+    setIsFileExplorerOpen(prev => !prev)
+  }, [])
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* ヘッダー */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">
-              テキストエディタ - デザインパターン学習プロジェクト
-            </CardTitle>
-            <p className="text-gray-600">
-              Phase 3: Observer Pattern による UI更新システム完了 - リアルタイム設定変更監視
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl font-bold">
+                  テキストエディタ - デザインパターン学習プロジェクト
+                </CardTitle>
+                <p className="text-gray-600">
+                  Phase 4: Factory Pattern によるファイル管理システム完了 + 全パターン統合
+                </p>
+                {currentFile && (
+                  <p className="text-sm text-blue-600 mt-2">
+                    現在編集中: {currentFile.name} ({currentFile.type.toUpperCase()})
+                  </p>
+                )}
+                {fileOperationStatus && (
+                  <p className="text-sm text-green-600 mt-1">
+                    {fileOperationStatus}
+                  </p>
+                )}
+              </div>
+              
+              {/* ファイル操作ツールバー */}
+              <div className="flex items-center space-x-2">
+                <FileMenu
+                  currentContent={text}
+                  currentFileName={currentFile?.name}
+                  onFileCreated={handleFileCreated}
+                  onFileLoaded={handleFileLoaded}
+                  onFileSaved={handleFileSaved}
+                />
+                <Button
+                  onClick={handleOpenLoadDialog}
+                  variant="outline"
+                  size="sm"
+                >
+                  📂 開く
+                </Button>
+                <Button
+                  onClick={handleOpenSaveDialog}
+                  variant="outline"
+                  size="sm"
+                  disabled={text.trim().length === 0}
+                >
+                  💾 名前を付けて保存
+                </Button>
+                <Button
+                  onClick={handleToggleFileExplorer}
+                  variant="outline"
+                  size="sm"
+                >
+                  📁 ファイル一覧
+                </Button>
+              </div>
+            </div>
           </CardHeader>
         </Card>
 
@@ -208,13 +359,59 @@ function App() {
           </CardContent>
         </Card>
 
+        {/* ファイルエクスプローラー（条件表示） */}
+        {isFileExplorerOpen && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">ファイルエクスプローラー</CardTitle>
+                <Button
+                  onClick={() => setIsFileExplorerOpen(false)}
+                  variant="ghost"
+                  size="sm"
+                >
+                  ✕ 閉じる
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <FileExplorer
+                onFileSelect={handleFileLoaded}
+                onFileDelete={handleFileDeleted}
+                displayMode="list"
+                maxFiles={20}
+              />
+            </CardContent>
+          </Card>
+        )}
+
         {/* メインエディタエリア */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* エディタ */}
           <div className="lg:col-span-3">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">エディタ</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">
+                    エディタ
+                    {currentFile && (
+                      <span className="ml-2 text-sm text-gray-500">
+                        - {currentFile.name}
+                      </span>
+                    )}
+                  </CardTitle>
+                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <span>{textStats.lines} 行</span>
+                    <span>•</span>
+                    <span>{textStats.characters} 文字</span>
+                    {currentFile && (
+                      <>
+                        <span>•</span>
+                        <span className="text-blue-600">{currentFile.type.toUpperCase()}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 {/* エディタとライン番号の統合表示 */}
@@ -256,6 +453,52 @@ function App() {
               showDetailedStats={true}
               maxCharacters={5000}
             />
+
+            {/* ファイル操作ツール */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">ファイル操作</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <Button 
+                    onClick={handleOpenLoadDialog}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    📂 ファイルを開く
+                  </Button>
+                  <Button 
+                    onClick={handleOpenSaveDialog}
+                    variant="outline"
+                    className="w-full"
+                    disabled={text.trim().length === 0}
+                  >
+                    💾 名前を付けて保存
+                  </Button>
+                  <Button 
+                    onClick={handleToggleFileExplorer}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    📁 ファイル一覧表示
+                  </Button>
+                  {currentFile && (
+                    <Button 
+                      onClick={() => {
+                        setCurrentFile(null)
+                        setText('')
+                        setFileOperationStatus('ファイルを閉じました')
+                      }}
+                      variant="outline"
+                      className="w-full text-red-600 hover:text-red-700"
+                    >
+                      ✕ ファイルを閉じる
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* テキストツール */}
             <Card>
@@ -316,14 +559,63 @@ function App() {
                     <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
                     <span>Composition Pattern ✓</span>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                    <span>Factory Pattern ✓</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
+                    <span>Repository Pattern ✓</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="w-2 h-2 bg-pink-500 rounded-full"></span>
+                    <span>Facade Pattern ✓</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="w-2 h-2 bg-teal-500 rounded-full"></span>
+                    <span>Strategy Pattern ✓</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="w-2 h-2 bg-gray-500 rounded-full"></span>
+                    <span>Template Method Pattern ✓</span>
+                  </div>
                 </div>
                 <div className="mt-3 pt-3 border-t text-xs text-gray-500">
-                  Phase 3: UI更新 + Observer Pattern 完了
+                  Phase 4: Factory Pattern完了 - 全デザインパターン統合アプリケーション
                 </div>
+                {currentFile && (
+                  <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
+                    <div className="font-medium text-blue-800">現在のファイル情報</div>
+                    <div className="text-blue-600">ID: {currentFile.id.substring(0, 8)}...</div>
+                    <div className="text-blue-600">形式: {currentFile.type.toUpperCase()}</div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         </div>
+
+        {/* ダイアログコンポーネント */}
+        <SaveDialog
+          isOpen={isSaveDialogOpen}
+          onClose={() => setIsSaveDialogOpen(false)}
+          content={text}
+          currentFile={currentFile ? {
+            id: currentFile.id,
+            name: currentFile.name,
+            type: currentFile.type
+          } : undefined}
+          onSaveComplete={handleFileSaved}
+        />
+
+        <LoadDialog
+          isOpen={isLoadDialogOpen}
+          onClose={() => setIsLoadDialogOpen(false)}
+          onFileSelect={handleFileLoaded}
+          defaultDisplayMode="list"
+          allowedTypes={['txt', 'md', 'json']}
+          maxFiles={50}
+        />
       </div>
     </div>
   )

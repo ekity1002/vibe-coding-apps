@@ -156,7 +156,7 @@ describe('CharCounter', () => {
       render(<CharCounter text={sampleText} />)
 
       expect(screen.getByText('最終更新:')).toBeInTheDocument()
-      expect(screen.getByText('12:30:45')).toBeInTheDocument()
+      expect(screen.getByText('12:30:45 PM')).toBeInTheDocument()
     })
 
     it('should not show last updated time for empty text', () => {

@@ -37,9 +37,10 @@ describe('StatusBar', () => {
     })
 
     it('should render multi-line selection information', () => {
-      render(<StatusBar {...defaultProps} selectedText="Hello\nWorld" />)
+      const multiLineText = "Hello\nWorld"
+      render(<StatusBar {...defaultProps} selectedText={multiLineText} />)
 
-      expect(screen.getByText('選択: 12文字 (2行)')).toBeInTheDocument()
+      expect(screen.getByText('選択: 11文字 (2行)')).toBeInTheDocument()
     })
 
     it('should show auto-save indicator when enabled', () => {

@@ -52,8 +52,8 @@ describe('TextArea Component', () => {
     render(<TextArea />)
     const textarea = screen.getByRole('textbox')
     
-    // デフォルトフォントサイズ（14px = text-sm）が適用されているかを確認
-    expect(textarea).toHaveClass('text-sm')
+    // デフォルトフォントサイズ（14px）がstyleで適用されているかを確認
+    expect(textarea).toHaveStyle({ fontSize: '14px' })
   })
 
   it('should apply EditorConfig theme settings for light theme', () => {
