@@ -389,3 +389,118 @@ types/
 - 厳密なTypeScript設定
 - デザインパターンの型定義
 - 実行時型チェック
+
+---
+
+## DDD (Domain-Driven Design) アーキテクチャ適用
+
+### 実装日
+2025年7月12日
+
+### 変更概要
+従来の技術レイヤー型のフォルダ構成をDDD（ドメイン駆動設計）アーキテクチャに変更しました。
+
+### 新しいフォルダ構造
+```
+src/
+├── application/
+│   ├── services/
+│   │   ├── TextService.ts        # テキスト操作のユースケース
+│   │   └── CommandService.ts       # コマンド実行・管理のユースケース
+│   └── usecases/                 # 将来的なユースケース拡張用
+│
+├── domain/
+│   ├── text/
+│   │   └── entities/             # テキストエンティティ（将来拡張用）
+│   ├── command/
+│   │   ├── commands/
+│   │   │   ├── InsertTextCommand.ts
+│   │   │   ├── DeleteTextCommand.ts
+│   │   │   └── ReplaceTextCommand.ts
+│   │   └── types/
+│   │       └── Command.ts          # Commandのインターフェース（旧CommandTypes.ts）
+│   ├── config/
+│   │   └── entities/
+│   │       └── EditorConfig.ts
+│   └── observer/
+│       ├── services/
+│       │   ├── ObserverService.ts  # 汎用的なオブザーバー
+│       │   └── ConfigObserver.ts
+│       └── types/
+│           └── ObserverTypes.ts
+│
+├── presentation/
+│   ├── components/
+│   │   ├── editor/
+│   │   │   ├── Editor.tsx
+│   │   │   └── TextArea.tsx
+│   │   ├── command/
+│   │   │   ├── CommandEditor.tsx
+│   │   │   └── CommandTextArea.tsx
+│   │   └── history/
+│   │       ├── HistoryPanel.tsx
+│   │       ├── HistoryItem.tsx
+│   │       └── HistoryStats.tsx
+│   ├── hooks/
+│   │   └── useCommandHistory.ts      # UIとapplication層を繋ぐフック
+│   └── shared/                     # 共有UIコンポーネント
+│       ├── button.tsx
+│       ├── card.tsx
+│       ├── select.tsx
+│       ├── switch.tsx
+│       └── textarea.tsx
+│
+├── shared/
+│   ├── types/
+│   │   └── CommonTypes.ts          # 共通型定義（将来拡張用）
+│   └── utils/
+│       └── cn.ts
+│
+└── App.tsx
+```
+
+### 変更内容詳細
+
+#### 1. レイヤー分離
+- **Application層**: ユースケースとアプリケーションサービス
+- **Domain層**: ビジネスロジックとドメインモデル
+- **Presentation層**: UI関連の全コンポーネント
+- **Shared層**: 共通ユーティリティとタイプ
+
+#### 2. ドメイン分離
+- **text**: テキスト処理関連
+- **command**: コマンドパターン実装
+- **config**: 設定管理
+- **observer**: オブザーバーパターン実装
+
+#### 3. テスト構造も同様に変更
+```
+tests/
+├── application/services/
+├── domain/
+│   ├── command/commands/
+│   ├── config/entities/
+│   └── observer/services/
+└── presentation/
+    ├── components/
+    │   ├── editor/
+    │   └── history/
+    └── hooks/
+```
+
+### DDD導入によるメリット
+1. **関心の分離**: ビジネスロジックとUIが明確に分離
+2. **拡張性**: 新しいドメインの追加が容易
+3. **保守性**: ドメイン別に構造化されたコード
+4. **テスト可能性**: レイヤー別の独立したテスト
+5. **チーム開発**: ドメイン別の並行開発が可能
+
+### 影響範囲
+- 全ソースファイルのimportパス変更
+- 全テストファイルのimportパス変更
+- プロジェクト構造の完全な再編成
+
+### 互換性
+- 外部APIは変更なし
+- コンポーネントの機能は維持
+- デザインパターンの実装は保持

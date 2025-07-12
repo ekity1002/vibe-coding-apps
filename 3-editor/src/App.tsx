@@ -1,11 +1,11 @@
 import { useState, useCallback, useMemo } from 'react'
-import { Editor } from './editor/Editor'
-import { EditorConfig } from './config/EditorConfig'
-import { TextService } from './services/TextService'
-import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card'
-import { Button } from './components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select'
-import { Switch } from './components/ui/switch'
+import { Editor } from './presentation/components/editor/Editor'
+import { EditorConfig } from './domain/config/entities/EditorConfig'
+import { TextService } from './application/services/TextService'
+import { Card, CardContent, CardHeader, CardTitle } from './presentation/shared/card'
+import { Button } from './presentation/shared/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './presentation/shared/select'
+import { Switch } from './presentation/shared/switch'
 import './App.css'
 
 /**
