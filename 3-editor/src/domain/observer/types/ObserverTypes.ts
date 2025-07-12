@@ -70,7 +70,7 @@ export interface ISubject<T = any> {
  */
 export interface EditorConfigChangeData {
   /** 変更された設定のキー */
-  key: keyof EditorSettings
+  key: string
   /** 変更前の値 */
   oldValue: any
   /** 変更後の値 */
@@ -79,18 +79,6 @@ export interface EditorConfigChangeData {
   timestamp: number
   /** 変更の発生源 */
   source?: string
-}
-
-/**
- * エディタ設定の型定義（参照用）
- */
-export interface EditorSettings {
-  theme: 'light' | 'dark'
-  fontSize: number
-  showLineNumbers: boolean
-  autoSave: boolean
-  tabSize: number
-  wordWrap: boolean
 }
 
 /**

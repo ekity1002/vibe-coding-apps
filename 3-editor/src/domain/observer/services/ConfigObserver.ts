@@ -1,4 +1,4 @@
-import { IObserver, EditorConfigChangeData } from '../types/ObserverTypes'
+import type { IObserver, EditorConfigChangeData } from '../types/ObserverTypes'
 
 /**
  * エディタ設定変更用のObserver実装

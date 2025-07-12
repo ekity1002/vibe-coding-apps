@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Card } from '../../shared/card'
 import { TextArea } from './TextArea'
 import { EditorConfig, type EditorSettings } from '../../../domain/config/entities/EditorConfig'
+import { ConfigObserver } from '../../../domain/observer/services/ConfigObserver'
+import type { EditorConfigChangeData } from '../../../domain/observer/types/ObserverTypes'
 import { cn } from '../../../shared/utils/cn'
 
 /**
@@ -48,9 +50,11 @@ LineNumbers.displayName = 'LineNumbers'
  * - 行番号表示機能
  * - テーマ対応（ライト/ダーク）
  * - TextAreaコンポーネントとの統合
+ * - リアルタイム設定変更対応（Observer Pattern）
  * 
  * Design Patterns:
  * - Singleton Pattern: EditorConfigでの設定管理
+ * - Observer Pattern: 設定変更の監視とリアルタイム更新
  * - Composition Pattern: TextAreaコンポーネントの組み合わせ
  */
 export const Editor: React.FC<EditorProps> = React.memo(({
@@ -68,10 +72,31 @@ export const Editor: React.FC<EditorProps> = React.memo(({
     setText(initialValue)
   }, [initialValue])
 
-  // EditorConfig設定を監視（将来的にObserverパターンで実装）
+  // Observer Pattern実装: EditorConfigの変更監視
   useEffect(() => {
     const editorConfig = EditorConfig.getInstance()
+    
+    // 設定変更監視用Observer
+    const editorObserver = new ConfigObserver(
+      (data: EditorConfigChangeData) => {
+        // 設定変更時にconfigを更新（リロード不要）
+        setConfig(editorConfig.getSettings())
+      },
+      { 
+        id: 'editor-config-observer',
+        watchedKeys: ['theme', 'fontSize', 'showLineNumbers', 'tabSize', 'wordWrap']
+      }
+    )
+
+    editorConfig.attach(editorObserver)
+
+    // 初期設定も取得
     setConfig(editorConfig.getSettings())
+
+    // クリーンアップ時にObserverを削除
+    return () => {
+      editorConfig.detach(editorObserver)
+    }
   }, [])
 
   // テキスト変更ハンドラ（最適化）

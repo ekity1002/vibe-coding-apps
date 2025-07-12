@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { Textarea } from '../../shared/textarea'
 import { EditorConfig, type EditorSettings } from '../../../domain/config/entities/EditorConfig'
+import { ConfigObserver } from '../../../domain/observer/services/ConfigObserver'
+import type { EditorConfigChangeData } from '../../../domain/observer/types/ObserverTypes'
 import { cn } from '../../../shared/utils/cn'
 
 /**
@@ -23,6 +25,7 @@ interface TextAreaProps {
  * Features:
  * - EditorConfigのSingleton設定を自動反映
  * - フォントサイズとテーマの動的変更対応
+ * - リアルタイム設定変更対応（Observer Pattern）
  * - パフォーマンス最適化（React.memo、useCallback）
  */
 export const TextArea: React.FC<TextAreaProps> = React.memo(({
@@ -41,10 +44,31 @@ export const TextArea: React.FC<TextAreaProps> = React.memo(({
     setText(value)
   }, [value])
 
-  // EditorConfig設定を監視（将来的にObserverパターンで実装）
+  // Observer Pattern実装: EditorConfigの変更監視
   useEffect(() => {
     const editorConfig = EditorConfig.getInstance()
+    
+    // 設定変更監視用Observer
+    const textAreaObserver = new ConfigObserver(
+      (data: EditorConfigChangeData) => {
+        // 設定変更時にconfigを更新
+        setConfig(editorConfig.getSettings())
+      },
+      { 
+        id: 'textarea-config-observer',
+        watchedKeys: ['theme', 'fontSize']
+      }
+    )
+
+    editorConfig.attach(textAreaObserver)
+
+    // 初期設定も取得
     setConfig(editorConfig.getSettings())
+
+    // クリーンアップ時にObserverを削除
+    return () => {
+      editorConfig.detach(textAreaObserver)
+    }
   }, [])
 
   // テキスト変更ハンドラ（最適化）
@@ -54,14 +78,10 @@ export const TextArea: React.FC<TextAreaProps> = React.memo(({
     onChange?.(newValue)
   }, [onChange])
 
-  // フォントサイズクラスを動的に決定（メモ化）
-  const fontSizeClass = useMemo(() => {
-    switch (config.fontSize) {
-      case 12: return 'text-xs'
-      case 14: return 'text-sm'
-      case 16: return 'text-base'
-      case 18: return 'text-lg'
-      default: return 'text-sm'
+  // フォントサイズスタイルを動的に決定（メモ化）
+  const fontSizeStyle = useMemo(() => {
+    return {
+      fontSize: `${config.fontSize}px`
     }
   }, [config.fontSize])
 
@@ -75,9 +95,8 @@ export const TextArea: React.FC<TextAreaProps> = React.memo(({
   // 最終的なCSSクラスを結合（メモ化）
   const textareaClassName = useMemo(() => cn(
     'w-full h-full resize-none border-0 focus-visible:ring-0 p-4',
-    fontSizeClass,
     themeClasses
-  ), [fontSizeClass, themeClasses])
+  ), [themeClasses])
 
   return (
     <div className={cn('w-full h-full', className)}>
@@ -86,6 +105,7 @@ export const TextArea: React.FC<TextAreaProps> = React.memo(({
         onChange={handleChange}
         placeholder={placeholder}
         className={textareaClassName}
+        style={fontSizeStyle}
         aria-label="Text editor input area"
       />
     </div>

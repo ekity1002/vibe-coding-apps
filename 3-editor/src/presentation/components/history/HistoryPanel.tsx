@@ -4,7 +4,7 @@ import { Button } from '../../shared/button'
 import { CommandService } from '../../../application/services/CommandService'
 import { EditorConfig } from '../../../domain/config/entities/EditorConfig'
 import { ConfigObserver } from '../../../domain/observer/services/ConfigObserver'
-import { EditorConfigChangeData } from '../../../domain/observer/types/ObserverTypes'
+import type { EditorConfigChangeData } from '../../../domain/observer/types/ObserverTypes'
 import { HistoryItem } from './HistoryItem'
 import { HistoryStats } from './HistoryStats'
 

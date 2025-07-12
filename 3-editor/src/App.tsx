@@ -1,6 +1,10 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { Editor } from './presentation/components/editor/Editor'
+import { StatusBar } from './presentation/components/editor/StatusBar'
+import { LineCounter } from './presentation/components/editor/LineCounter'
+import { CharCounter } from './presentation/components/editor/CharCounter'
 import { EditorConfig } from './domain/config/entities/EditorConfig'
+import { ConfigObserver } from './domain/observer/services/ConfigObserver'
 import { TextService } from './application/services/TextService'
 import { Card, CardContent, CardHeader, CardTitle } from './presentation/shared/card'
 import { Button } from './presentation/shared/button'
@@ -11,18 +15,67 @@ import './App.css'
 /**
  * メインアプリケーションコンポーネント
  * 
- * Phase 1でのデザインパターン実装:
+ * 実装済みデザインパターン:
  * - Singleton Pattern: EditorConfig による設定管理
  * - Composition Pattern: Editor、TextService、UI コンポーネントの組み合わせ
- * - Observer Pattern: テキスト変更の監視（今後実装予定）
+ * - Observer Pattern: エディタ設定変更の監視とリアルタイム更新
+ * - Command Pattern: テキスト操作の履歴管理（CommandEditor使用時）
  */
 function App() {
   const [text, setText] = useState('')
-  const [config] = useState(() => EditorConfig.getInstance())
+  const [currentLine, setCurrentLine] = useState(1)
+  const [currentColumn, setCurrentColumn] = useState(1)
+  const [selectedText] = useState<string | undefined>()
+  
+  // 設定値を個別に管理してReactの再レンダリングを確実にする
+  const [fontSize, setFontSize] = useState(() => EditorConfig.getInstance().getFontSize())
+  const [theme, setTheme] = useState(() => EditorConfig.getInstance().getTheme())
+  const [showLineNumbers, setShowLineNumbers] = useState(() => EditorConfig.getInstance().getShowLineNumbers())
+  const [autoSave, setAutoSave] = useState(() => EditorConfig.getInstance().getAutoSave())
+
+  // Observer Pattern実装: EditorConfigの変更監視
+  useEffect(() => {
+    const editorConfig = EditorConfig.getInstance()
+    
+    const appObserver = new ConfigObserver(
+      (data) => {
+        // 設定変更時に対応するstate値を更新（リロード不要）
+        switch (data.key) {
+          case 'fontSize':
+            setFontSize(data.newValue)
+            break
+          case 'theme':
+            setTheme(data.newValue)
+            break
+          case 'showLineNumbers':
+            setShowLineNumbers(data.newValue)
+            break
+          case 'autoSave':
+            setAutoSave(data.newValue)
+            break
+        }
+      },
+      { 
+        id: 'app-observer',
+        watchedKeys: ['theme', 'fontSize', 'showLineNumbers', 'autoSave']
+      }
+    )
+
+    editorConfig.attach(appObserver)
+
+    // クリーンアップ時にObserverを削除
+    return () => {
+      editorConfig.detach(appObserver)
+    }
+  }, [])
 
   // テキスト変更ハンドラ
   const handleTextChange = useCallback((newText: string) => {
     setText(newText)
+    // カーソル位置の更新（簡易版）
+    const lines = newText.split('\n')
+    setCurrentLine(lines.length)
+    setCurrentColumn(lines[lines.length - 1]?.length + 1 || 1)
   }, [])
 
   // テキスト統計の計算（メモ化）
@@ -30,28 +83,41 @@ function App() {
     return TextService.getTextStatistics(text)
   }, [text])
 
-  // エディタ設定変更ハンドラ
+  // エディタ設定変更ハンドラ（Observer Patternで自動更新）
   const handleFontSizeChange = useCallback((value: string) => {
-    config.setFontSize(parseInt(value) as 12 | 14 | 16 | 18)
-    // 強制的な再レンダリング（Observer パターンで改善予定）
-    window.location.reload()
-  }, [config])
+    console.log('Setting font size to:', value)
+    const editorConfig = EditorConfig.getInstance()
+    editorConfig.setFontSize(parseInt(value) as 12 | 14 | 16 | 18)
+    // Observer Patternにより自動更新されるため、リロード不要
+  }, [])
 
   const handleThemeChange = useCallback((value: string) => {
-    config.setTheme(value as 'light' | 'dark')
-    // 強制的な再レンダリング（Observer パターンで改善予定）
-    window.location.reload()
-  }, [config])
+    console.log('Setting theme to:', value)
+    const editorConfig = EditorConfig.getInstance()
+    editorConfig.setTheme(value as 'light' | 'dark')
+    // Observer Patternにより自動更新されるため、リロード不要
+  }, [])
 
   const handleLineNumbersChange = useCallback((checked: boolean) => {
-    config.setShowLineNumbers(checked)
-    // 強制的な再レンダリング（Observer パターンで改善予定）
-    window.location.reload()
-  }, [config])
+    console.log('Setting line numbers to:', checked)
+    const editorConfig = EditorConfig.getInstance()
+    editorConfig.setShowLineNumbers(checked)
+    // Observer Patternにより自動更新されるため、リロード不要
+  }, [])
 
   const handleAutoSaveChange = useCallback((checked: boolean) => {
-    config.setAutoSave(checked)
-  }, [config])
+    console.log('Setting auto save to:', checked)
+    const editorConfig = EditorConfig.getInstance()
+    editorConfig.setAutoSave(checked)
+    // Observer Patternにより自動更新されるため、リロード不要
+  }, [])
+
+  // 行番号クリック時のジャンプ機能
+  const handleLineClick = useCallback((lineNumber: number) => {
+    setCurrentLine(lineNumber)
+    // 実際のエディタでは、ここでテキストエリアの対応する行にフォーカスを移動
+    console.log(`行 ${lineNumber} にジャンプ`)
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -63,7 +129,7 @@ function App() {
               テキストエディタ - デザインパターン学習プロジェクト
             </CardTitle>
             <p className="text-gray-600">
-              Phase 1: Singleton Pattern を使用した設定管理システム
+              Phase 3: Observer Pattern による UI更新システム完了 - リアルタイム設定変更監視
             </p>
           </CardHeader>
         </Card>
@@ -79,11 +145,11 @@ function App() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">フォントサイズ</label>
                 <Select 
-                  value={config.getFontSize().toString()} 
+                  value={fontSize.toString()} 
                   onValueChange={handleFontSizeChange}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="フォントサイズを選択" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="12">12px</SelectItem>
@@ -98,11 +164,11 @@ function App() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">テーマ</label>
                 <Select 
-                  value={config.getTheme()} 
+                  value={theme} 
                   onValueChange={handleThemeChange}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="テーマを選択" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="light">ライト</SelectItem>
@@ -116,11 +182,11 @@ function App() {
                 <label className="text-sm font-medium">行番号表示</label>
                 <div className="flex items-center space-x-2">
                   <Switch 
-                    checked={config.getShowLineNumbers()}
+                    checked={showLineNumbers}
                     onCheckedChange={handleLineNumbersChange}
                   />
                   <span className="text-sm">
-                    {config.getShowLineNumbers() ? '有効' : '無効'}
+                    {showLineNumbers ? '有効' : '無効'}
                   </span>
                 </div>
               </div>
@@ -130,11 +196,11 @@ function App() {
                 <label className="text-sm font-medium">自動保存</label>
                 <div className="flex items-center space-x-2">
                   <Switch 
-                    checked={config.getAutoSave()}
+                    checked={autoSave}
                     onCheckedChange={handleAutoSaveChange}
                   />
                   <span className="text-sm">
-                    {config.getAutoSave() ? '有効' : '無効'}
+                    {autoSave ? '有効' : '無効'}
                   </span>
                 </div>
               </div>
@@ -143,51 +209,53 @@ function App() {
         </Card>
 
         {/* メインエディタエリア */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* エディタ */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">エディタ</CardTitle>
               </CardHeader>
-              <CardContent>
-                <Editor 
-                  initialValue={text}
-                  onTextChange={handleTextChange}
-                  className="min-h-[400px]"
+              <CardContent className="p-0">
+                {/* エディタとライン番号の統合表示 */}
+                <div className="flex">
+                  {/* 行番号カウンター */}
+                  <LineCounter 
+                    text={text}
+                    currentLine={currentLine}
+                    onLineClick={handleLineClick}
+                  />
+                  
+                  {/* メインエディタ */}
+                  <div className="flex-1">
+                    <Editor 
+                      initialValue={text}
+                      onTextChange={handleTextChange}
+                      className="min-h-[400px] rounded-l-none"
+                    />
+                  </div>
+                </div>
+                
+                {/* ステータスバー */}
+                <StatusBar 
+                  currentLine={currentLine}
+                  currentColumn={currentColumn}
+                  totalLines={textStats.lines}
+                  totalCharacters={textStats.characters}
+                  selectedText={selectedText}
                 />
               </CardContent>
             </Card>
           </div>
 
-          {/* テキスト統計とツール */}
+          {/* サイドパネル */}
           <div className="space-y-6">
-            {/* テキスト統計 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">テキスト統計</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium">文字数:</span>
-                    <span className="text-sm">{textStats.characters}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium">行数:</span>
-                    <span className="text-sm">{textStats.lines}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium">単語数:</span>
-                    <span className="text-sm">{textStats.words}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium">空白を除く文字数:</span>
-                    <span className="text-sm">{textStats.charactersNoSpaces}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* 文字数カウンター */}
+            <CharCounter 
+              text={text}
+              showDetailedStats={true}
+              maxCharacters={5000}
+            />
 
             {/* テキストツール */}
             <Card>
@@ -224,26 +292,33 @@ function App() {
             {/* デザインパターン情報 */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">実装パターン</CardTitle>
+                <CardTitle className="text-lg">実装済みパターン</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center space-x-2">
                     <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    <span>Singleton Pattern</span>
+                    <span>Singleton Pattern ✓</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                    <span>Composition Pattern</span>
+                    <span>Observer Pattern ✓</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                    <span>Command Pattern ✓</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                    <span>Static Factory Pattern</span>
+                    <span>Static Factory Pattern ✓</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
-                    <span>Observer Pattern (予定)</span>
+                    <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                    <span>Composition Pattern ✓</span>
                   </div>
+                </div>
+                <div className="mt-3 pt-3 border-t text-xs text-gray-500">
+                  Phase 3: UI更新 + Observer Pattern 完了
                 </div>
               </CardContent>
             </Card>
